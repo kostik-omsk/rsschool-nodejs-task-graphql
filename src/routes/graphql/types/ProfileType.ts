@@ -1,5 +1,6 @@
 import {
   GraphQLBoolean,
+  GraphQLInputObjectType,
   GraphQLInt,
   GraphQLNonNull,
   GraphQLObjectType,
@@ -11,6 +12,7 @@ import { Profile } from '../types.js';
 import { FastifyInstance } from 'fastify';
 import { MemberType } from './MemberType.js';
 import { MemberTypeId } from '../../member-types/schemas.js';
+import { memberTypeId } from './MemberTypeId.js';
 
 export const ProfileType: GraphQLObjectType<Profile, FastifyInstance> =
   new GraphQLObjectType({
@@ -53,3 +55,36 @@ export const ProfileType: GraphQLObjectType<Profile, FastifyInstance> =
       },
     }),
   });
+
+export const CreateProfileInputType = new GraphQLInputObjectType({
+  name: 'CreateProfileInput',
+  fields: () => ({
+    userId: {
+      type: new GraphQLNonNull(UUIDType),
+    },
+    memberTypeId: {
+      type: memberTypeId,
+    },
+    isMale: {
+      type: GraphQLBoolean,
+    },
+    yearOfBirth: {
+      type: GraphQLInt,
+    },
+  }),
+});
+
+export const ChangeProfileInputType = new GraphQLInputObjectType({
+  name: 'ChangeProfileInput',
+  fields: () => ({
+    memberTypeId: {
+      type: memberTypeId,
+    },
+    isMale: {
+      type: GraphQLBoolean,
+    },
+    yearOfBirth: {
+      type: GraphQLInt,
+    },
+  }),
+});
