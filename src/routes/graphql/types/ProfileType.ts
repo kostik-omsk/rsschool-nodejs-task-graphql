@@ -2,24 +2,23 @@ import {
   GraphQLBoolean,
   GraphQLInputObjectType,
   GraphQLInt,
-  GraphQLNonNull,
   GraphQLObjectType,
   GraphQLString,
 } from 'graphql';
 import { UUIDType } from './UUID.js';
 
-import { Profile } from '../types.js';
-import { FastifyInstance } from 'fastify';
+import { GraphqlContext, Profile } from '../types.js';
 import { MemberType } from './MemberType.js';
 import { MemberTypeId } from '../../member-types/schemas.js';
 import { memberTypeId } from './MemberTypeId.js';
+import { UserType } from './User.js';
 
-export const ProfileType: GraphQLObjectType<Profile, FastifyInstance> =
+export const ProfileType: GraphQLObjectType<Profile, GraphqlContext> =
   new GraphQLObjectType({
     name: 'Profile',
     fields: () => ({
       id: {
-        type: new GraphQLNonNull(UUIDType),
+        type: UUIDType,
       },
       isMale: {
         type: GraphQLBoolean,
@@ -31,14 +30,12 @@ export const ProfileType: GraphQLObjectType<Profile, FastifyInstance> =
         type: GraphQLString,
       },
       userId: {
-        type: new GraphQLNonNull(UUIDType),
+        type: UUIDType,
       },
       user: {
-        type: new GraphQLNonNull(UUIDType),
-        resolve: async ({ userId }, _, { prisma }: FastifyInstance) => {
-          return await prisma.user.findUnique({
-            where: { id: userId },
-          });
+        type: UserType,
+        resolve: async (userId, _, context: GraphqlContext) => {
+          return await context.loaders.userById.load(userId);
         },
       },
       memberType: {
@@ -46,11 +43,9 @@ export const ProfileType: GraphQLObjectType<Profile, FastifyInstance> =
         resolve: async (
           { memberTypeId }: { memberTypeId: MemberTypeId },
           _,
-          { prisma }: FastifyInstance,
+          context: GraphqlContext,
         ) => {
-          return await prisma.memberType.findUnique({
-            where: { id: memberTypeId },
-          });
+          return await context.loaders.memberTypeById.load(memberTypeId);
         },
       },
     }),
@@ -60,7 +55,7 @@ export const CreateProfileInputType = new GraphQLInputObjectType({
   name: 'CreateProfileInput',
   fields: () => ({
     userId: {
-      type: new GraphQLNonNull(UUIDType),
+      type: UUIDType,
     },
     memberTypeId: {
       type: memberTypeId,

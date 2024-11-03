@@ -24,6 +24,14 @@ import {
 } from './types/ProfileType.js';
 import { ChangePostInputType, CreatePostInputType, PostType } from './types/PostType.js';
 import { MemberTypeId } from '../member-types/schemas.js';
+import { createLoaders } from './loader/loader.js';
+import { GraphqlContext } from './types.js';
+import {
+  parseResolveInfo,
+  ResolveTree,
+  simplifyParsedResolveInfoFragmentWithType,
+} from 'graphql-parse-resolve-info';
+import { UUID } from 'crypto';
 
 const schema = new GraphQLSchema({
   query: new GraphQLObjectType({
@@ -31,56 +39,67 @@ const schema = new GraphQLSchema({
     fields: {
       users: {
         type: new GraphQLList(UserType),
-        resolve: async (_, __, { prisma }: FastifyInstance) => {
-          return await prisma.user.findMany();
+        resolve: async (_, __, context: GraphqlContext, info) => {
+          const resolveInfo = simplifyParsedResolveInfoFragmentWithType(
+            parseResolveInfo(info) as ResolveTree,
+            new GraphQLList(UserType),
+          );
+          const users = await context.prisma.user.findMany({
+            include: {
+              userSubscribedTo: Boolean(resolveInfo.fields['userSubscribedTo']),
+              subscribedToUser: Boolean(resolveInfo.fields['subscribedToUser']),
+            },
+          });
+          users.forEach((u) => {
+            context.loaders.userById.prime(u.id as UUID, u);
+          });
+          return users;
         },
       },
       user: {
         type: UserType,
         args: { id: { type: new GraphQLNonNull(UUIDType) } },
-        resolve: async (_, { id }: { id: string }, { prisma }: FastifyInstance) => {
-          return await prisma.user.findUnique({ where: { id } });
+        resolve: async (_, { id }: { id: string }, context: GraphqlContext) => {
+          return await context.loaders.userById.load(id);
         },
       },
       posts: {
         type: new GraphQLList(PostType),
-        resolve: async (_, __, { prisma }: FastifyInstance) => {
-          return await prisma.post.findMany();
+        resolve: async (_, __, context: GraphqlContext) => {
+          return await context.prisma.post.findMany();
         },
       },
       post: {
         type: PostType,
         args: { id: { type: new GraphQLNonNull(UUIDType) } },
-        resolve: async (_, { id }: { id: string }, { prisma }: FastifyInstance) => {
-          return await prisma.post.findUnique({ where: { id } });
+        resolve: async (_, { id }: { id: string }, context: GraphqlContext) => {
+          return await context.loaders.postById.load(id);
         },
       },
       memberTypes: {
         type: new GraphQLList(MemberType),
-        resolve: async (_, __, { prisma }: FastifyInstance) => {
-          return await prisma.memberType.findMany();
+        resolve: async (_, __, context: GraphqlContext) => {
+          return await context.prisma.memberType.findMany();
         },
       },
       memberType: {
         type: MemberType,
         args: { id: { type: new GraphQLNonNull(memberTypeId) } },
-        resolve: async (_, { id }: { id: string }, { prisma }: FastifyInstance) => {
-          return await prisma.memberType.findUnique({
-            where: { id },
-          });
+        resolve: async (_, { id }: { id: string }, context: GraphqlContext) => {
+          return await context.loaders.memberTypeById.load(id);
         },
       },
       profiles: {
         type: new GraphQLList(ProfileType),
-        resolve: async (_, __, { prisma }: FastifyInstance) => {
-          return await prisma.profile.findMany();
+        resolve: async (_, __, context: GraphqlContext) => {
+          return await context.prisma.profile.findMany();
         },
       },
       profile: {
         type: ProfileType,
         args: { id: { type: new GraphQLNonNull(UUIDType) } },
-        resolve: async (_, { id }: { id: string }, { prisma }: FastifyInstance) => {
-          return await prisma.profile.findUnique({ where: { id } });
+        resolve: async (_, { id }: { id: string }, context: GraphqlContext) => {
+          return await context.loaders.profileById.load(id);
         },
       },
     },
@@ -137,7 +156,7 @@ const schema = new GraphQLSchema({
         args: { id: { type: new GraphQLNonNull(UUIDType) } },
         resolve: async (_, { id }: { id: string }, { prisma }: FastifyInstance) => {
           try {
-            await prisma.user.delete({ where: { id } });
+            await prisma.user.delete({ where: { id: id } });
             return true;
           } catch {
             return false;
@@ -223,106 +242,51 @@ const schema = new GraphQLSchema({
         },
       },
 
-      // subscribeTo: {
-      //   type: UserType,
-      //   args: {
-      //     userId: { type: new GraphQLNonNull(UUIDType) },
-      //     authorId: { type: new GraphQLNonNull(UUIDType) },
-      //   },
-      //   resolve: async (
-      //     _,
-      //     args: { userId: string; authorId: string },
-      //     { prisma }: FastifyInstance,
-      //   ) => {
-      //     const { userId, authorId } = args;
-      //     return await prisma.user.update({
-      //       where: {
-      //         id: userId,
-      //       },
-      //       data: {
-      //         userSubscribedTo: {
-      //           create: {
-      //             authorId: authorId,
-      //           },
-      //         },
-      //       },
-      //     });
-      //   },
-      // },
       subscribeTo: {
         type: UserType,
         args: {
-          userId: { type: UUIDType },
-          authorId: { type: UUIDType },
+          userId: { type: new GraphQLNonNull(UUIDType) },
+          authorId: { type: new GraphQLNonNull(UUIDType) },
         },
         resolve: async (
           _,
           args: { userId: string; authorId: string },
           { prisma }: FastifyInstance,
         ) => {
-          await prisma.user.update({
-            where: {
-              id: args.userId,
-            },
+          const { userId, authorId } = args;
+          await prisma.subscribersOnAuthors.create({
             data: {
-              userSubscribedTo: {
-                create: {
-                  authorId: args.authorId,
-                },
-              },
+              subscriberId: userId,
+              authorId: authorId,
             },
           });
+          return await prisma.user.findUnique({ where: { id: userId } });
         },
       },
 
-      // unsubscribeFrom: {
-      //   type: GraphQLBoolean,
-      //   args: {
-      //     userId: { type: new GraphQLNonNull(UUIDType) },
-      //     authorId: { type: new GraphQLNonNull(UUIDType) },
-      //   },
-      //   resolve: async (
-      //     _,
-      //     args: { userId: string; authorId: string },
-      //     { prisma }: FastifyInstance,
-      //   ) => {
-      //     const { userId, authorId } = args;
-      //     try {
-      //       await prisma.subscribersOnAuthors.delete({
-      //         where: {
-      //           subscriberId_authorId: {
-      //             subscriberId: userId,
-      //             authorId: authorId,
-      //           },
-      //         },
-      //       });
-      //       return true;
-      //     } catch {
-      //       return false;
-      //     }
-      //   },
-      // },
       unsubscribeFrom: {
         type: GraphQLBoolean,
         args: {
-          userId: { type: UUIDType },
-          authorId: { type: UUIDType },
+          userId: { type: new GraphQLNonNull(UUIDType) },
+          authorId: { type: new GraphQLNonNull(UUIDType) },
         },
         resolve: async (
           _,
           args: { userId: string; authorId: string },
           { prisma }: FastifyInstance,
         ) => {
-          const unsubscribed = await prisma.subscribersOnAuthors.delete({
-            where: {
-              subscriberId_authorId: {
-                subscriberId: args.userId,
-                authorId: args.authorId,
+          const { userId, authorId } = args;
+          try {
+            await prisma.subscribersOnAuthors.deleteMany({
+              where: {
+                subscriberId: userId,
+                authorId: authorId,
               },
-            },
-          });
-
-          return unsubscribed ? true : false;
+            });
+            return true;
+          } catch {
+            return false;
+          }
         },
       },
     },
@@ -330,6 +294,7 @@ const schema = new GraphQLSchema({
 });
 
 const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
+  const { prisma } = fastify;
   fastify.route({
     url: '/',
     method: 'POST',
@@ -349,7 +314,10 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
         schema,
         source: query,
         variableValues: variables,
-        contextValue: fastify,
+        contextValue: {
+          prisma,
+          loaders: createLoaders(prisma),
+        },
       });
     },
   });

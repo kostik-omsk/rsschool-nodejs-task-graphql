@@ -1,9 +1,11 @@
 import { UUID } from 'crypto';
 import { MemberTypeId } from '../member-types/schemas.ts';
 import { PrismaClient } from '@prisma/client';
+import { createLoaders } from './loader/loader.ts';
 
 export type GraphqlContext = {
   prisma: PrismaClient;
+  loaders: ReturnType<typeof createLoaders>;
 };
 
 export type Profile = {
@@ -14,12 +16,12 @@ export type Profile = {
   memberTypeId: MemberTypeId;
 };
 
-export type Post = {
-  id: UUID;
+export interface Post {
+  id: string;
   title: string;
   content: string;
-  authorId: UUID;
-};
+  authorId: string;
+}
 
 export type Subscription = {
   subscriberId: UUID;
@@ -30,10 +32,8 @@ export type User = {
   id: UUID;
   name: string;
   balance: number;
-  posts: Post[];
-  profile: Profile;
-  userSubscribedTo: Subscription[];
-  subscribedToUser: Subscription[];
+  userSubscribedTo?: Subscription[];
+  subscribedToUser?: Subscription[];
 };
 
 export type Member = {
