@@ -1,11 +1,11 @@
 import { UUID } from 'crypto';
 import { MemberTypeId } from '../member-types/schemas.ts';
 import { PrismaClient } from '@prisma/client';
-import { createLoaders } from './loader/loader.ts';
+import { initDataLoaders } from './loader/loader.ts';
 
 export type GraphqlContext = {
   prisma: PrismaClient;
-  loaders: ReturnType<typeof createLoaders>;
+  loaders: ReturnType<typeof initDataLoaders>;
 };
 
 export type Profile = {

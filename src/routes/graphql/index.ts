@@ -23,9 +23,8 @@ import {
   ProfileType,
 } from './types/ProfileType.js';
 import { ChangePostInputType, CreatePostInputType, PostType } from './types/PostType.js';
-import { MemberTypeId } from '../member-types/schemas.js';
-import { createLoaders } from './loader/loader.js';
-import { GraphqlContext } from './types.js';
+import { initDataLoaders } from './loader/loader.js';
+import { GraphqlContext, Profile } from './types.js';
 import {
   parseResolveInfo,
   ResolveTree,
@@ -136,18 +135,7 @@ const schema = new GraphQLSchema({
       createProfile: {
         type: ProfileType,
         args: { dto: { type: CreateProfileInputType } },
-        resolve: async (
-          _,
-          args: {
-            dto: {
-              isMale: boolean;
-              yearOfBirth: number;
-              memberTypeId: MemberTypeId;
-              userId: string;
-            };
-          },
-          { prisma }: FastifyInstance,
-        ) => {
+        resolve: async (_, args: { dto: Profile }, { prisma }: FastifyInstance) => {
           return await prisma.profile.create({ data: args.dto });
         },
       },
@@ -320,7 +308,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
         variableValues: variables,
         contextValue: {
           prisma,
-          loaders: createLoaders(prisma),
+          loaders: initDataLoaders(prisma),
         },
       });
     },

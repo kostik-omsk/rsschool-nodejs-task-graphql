@@ -34,7 +34,7 @@ export const ProfileType: GraphQLObjectType<Profile, GraphqlContext> =
       },
       user: {
         type: UserType,
-        resolve: async (userId, _, context: GraphqlContext) => {
+        resolve: async ({ userId }, _, context: GraphqlContext) => {
           return await context.loaders.userById.load(userId);
         },
       },
