@@ -1,10 +1,30 @@
 import { PrismaClient } from '@prisma/client';
-
-import DataLoader from 'dataloader';
-import { Post } from '../types.js';
 import { UUID } from 'crypto';
+import DataLoader from 'dataloader';
 
-export const createLoaders = (prisma: PrismaClient) => {
+export const initDataLoaders = (prisma: PrismaClient) => {
+  const profileById = new DataLoader(async (profileIds) => {
+    const profileList = await prisma.profile.findMany({
+      where: { id: { in: [...profileIds] as string[] } },
+    });
+    profileList.forEach((profile) => {
+      profileByUserId.prime(profile.userId as UUID, profile);
+    });
+    return profileIds.map((id) => profileList.find((profile) => profile.id === id));
+  });
+
+  const profileByUserId = new DataLoader(async (profileUserIds) => {
+    const profileList = await prisma.profile.findMany({
+      where: { userId: { in: [...profileUserIds] as string[] } },
+    });
+    profileList.forEach((profile) => {
+      profileById.prime(profile.id as UUID, profile);
+    });
+    return profileUserIds.map((id) =>
+      profileList.find((profile) => profile.userId === id),
+    );
+  });
+
   return {
     userById: new DataLoader(async (userIds) => {
       const userList = await prisma.user.findMany({
@@ -26,39 +46,26 @@ export const createLoaders = (prisma: PrismaClient) => {
       return postIds.map((id) => postList.find((post) => post.id === id));
     }),
 
-    // postsByAuthorId: new DataLoader(async (authorIds: readonly UUID[]) => {
-    //   const postList = await prisma.post.findMany({
-    //     where: { authorId: { in: [...authorIds] } },
-    //   });
-
-    //   const postMapAuthorId: Record<string, Post[]> = {};
-
-    //   for (const post of postList) {
-    //     const map = postMapAuthorId;
-    //     const key = post.authorId as UUID;
-    //     const val = post as Post;
-    //     map[key] = map[key] ? [...map[key], val] : [val];
-    //   }
-
-    //   return authorIds.map((id) => postMapAuthorId[id]);
-    // }),
-
     memberTypeById: new DataLoader(async (memberTypeIds) => {
       const memberTypeList = await prisma.memberType.findMany({
         where: { id: { in: [...memberTypeIds] as string[] } },
       });
-
       return memberTypeIds.map((id) =>
         memberTypeList.find((memberType) => memberType.id === id),
       );
     }),
 
-    profileById: new DataLoader(async (profileIds) => {
-      const profileList = await prisma.profile.findMany({
-        where: { id: { in: [...profileIds] as string[] } },
+    postsByAuthorId: new DataLoader(async (authorIds) => {
+      const posts = await prisma.post.findMany({
+        where: { authorId: { in: authorIds as string[] } },
       });
 
-      return profileIds.map((id) => profileList.find((profile) => profile.id === id));
+      return authorIds.map((authorId) =>
+        posts.filter((post) => post.authorId === authorId),
+      );
     }),
+
+    profileByUserId: profileByUserId,
+    profileById: profileById,
   };
 };

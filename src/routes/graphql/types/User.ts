@@ -2,7 +2,6 @@ import {
   GraphQLFloat,
   GraphQLInputObjectType,
   GraphQLList,
-  GraphQLNonNull,
   GraphQLObjectType,
   GraphQLString,
 } from 'graphql';
@@ -30,13 +29,13 @@ export const UserType: GraphQLObjectType<User, GraphqlContext> = new GraphQLObje
     profile: {
       type: ProfileType,
       resolve: async ({ id }, _, context: GraphqlContext) => {
-        return await context.prisma.profile.findUnique({ where: { userId: id } });
+        return await context.loaders.profileByUserId.load(id);
       },
     },
     posts: {
       type: new GraphQLList(PostType),
       resolve: async ({ id }, _, context: GraphqlContext) => {
-        return await context.prisma.post.findMany({ where: { authorId: id } });
+        return await context.loaders.postsByAuthorId.load(id);
       },
     },
 
