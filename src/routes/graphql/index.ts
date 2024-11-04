@@ -243,7 +243,7 @@ const schema = new GraphQLSchema({
       },
 
       subscribeTo: {
-        type: UserType,
+        type: GraphQLBoolean,
         args: {
           userId: { type: new GraphQLNonNull(UUIDType) },
           authorId: { type: new GraphQLNonNull(UUIDType) },
@@ -254,13 +254,17 @@ const schema = new GraphQLSchema({
           { prisma }: FastifyInstance,
         ) => {
           const { userId, authorId } = args;
-          await prisma.subscribersOnAuthors.create({
-            data: {
-              subscriberId: userId,
-              authorId: authorId,
-            },
-          });
-          return await prisma.user.findUnique({ where: { id: userId } });
+          try {
+            await prisma.subscribersOnAuthors.create({
+              data: {
+                subscriberId: userId,
+                authorId: authorId,
+              },
+            });
+            return true;
+          } catch {
+            return false;
+          }
         },
       },
 
