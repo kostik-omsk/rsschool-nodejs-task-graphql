@@ -5,7 +5,7 @@ import {
   GraphQLObjectType,
   GraphQLString,
 } from 'graphql';
-import { UUIDType } from './UUID.js';
+import { UUIDType } from './uuid.js';
 import { GraphqlContext, User } from '../types.js';
 import { ProfileType } from './ProfileType.js';
 

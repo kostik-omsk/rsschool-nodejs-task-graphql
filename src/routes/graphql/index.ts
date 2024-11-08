@@ -13,7 +13,7 @@ import {
 } from 'graphql';
 import depthLimit from 'graphql-depth-limit';
 
-import { UUIDType } from './types/UUID.js';
+import { UUIDType } from './types/uuid.js';
 import { ChangeUserInputType, CreateUserInputType, UserType } from './types/User.js';
 import { MemberType } from './types/MemberType.js';
 import { memberTypeId } from './types/MemberTypeId.js';

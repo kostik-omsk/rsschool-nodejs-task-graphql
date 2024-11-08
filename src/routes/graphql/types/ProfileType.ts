@@ -5,8 +5,7 @@ import {
   GraphQLObjectType,
   GraphQLString,
 } from 'graphql';
-import { UUIDType } from './UUID.js';
-
+import { UUIDType } from './uuid.js';
 import { GraphqlContext, Profile } from '../types.js';
 import { MemberType } from './MemberType.js';
 import { MemberTypeId } from '../../member-types/schemas.js';

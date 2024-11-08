@@ -4,8 +4,9 @@ import {
   GraphQLObjectType,
   GraphQLString,
 } from 'graphql';
-import { UUIDType } from './UUID.js';
+
 import { GraphqlContext, Post } from '../types.js';
+import { UUIDType } from './uuid.js';
 
 export const PostType: GraphQLObjectType<Post, GraphqlContext> = new GraphQLObjectType({
   name: 'Post',
